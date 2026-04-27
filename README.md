@@ -1,0 +1,2 @@
+- [ ] add cancel button in playlist processing
+- [ ] check api valdity b4 starting
