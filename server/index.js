@@ -26,7 +26,7 @@ app.use(express.json({ limit: '50mb' }));
 
 // Middleware: inject API key from .env if not provided in request
 app.use('/api', (req, res, next) => {
-  if (req.body && !req.body.apiKey && process.env.NVIDIA_API_KEY) {
+  if (req.body && (!req.body.apiKey || req.body.apiKey === '__env__') && process.env.NVIDIA_API_KEY) {
     req.body.apiKey = process.env.NVIDIA_API_KEY;
   }
   next();
