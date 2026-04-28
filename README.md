@@ -6,6 +6,7 @@
 - [ ] add cancel button in playlist processing
 - [ ] conformation msg before clearing
 - [ ] check api valdity b4 starting
+- [ ] add playlist history and store reccent playlist links w heading
 
 ## kill old process - window command
 

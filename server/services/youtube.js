@@ -38,74 +38,58 @@ export function extractPlaylistId(url) {
 }
 
 /**
- * Fetch all video IDs and metadata from a playlist by scraping the page
+ * Fetch all video IDs and metadata from a playlist using yt-dlp
  */
 export async function getPlaylistVideos(playlistUrl) {
   const playlistId = extractPlaylistId(playlistUrl);
   if (!playlistId) throw new Error('Invalid playlist URL. Could not extract playlist ID.');
 
   const url = `https://www.youtube.com/playlist?list=${playlistId}`;
-  const response = await fetch(url, { headers: HEADERS });
-
-  if (!response.ok) {
-    throw new Error(`Failed to fetch playlist page (HTTP ${response.status})`);
-  }
-
-  const html = await response.text();
-
-  const dataMatch = html.match(/var\s+ytInitialData\s*=\s*(\{.+?\});\s*<\/script>/s);
-  if (!dataMatch) {
-    throw new Error('Could not parse playlist data from YouTube page.');
-  }
-
-  let ytData;
+  
   try {
-    ytData = JSON.parse(dataMatch[1]);
-  } catch (e) {
-    throw new Error('Failed to parse YouTube playlist JSON data.');
-  }
+    const result = await youtubedl(url, {
+      dumpSingleJson: true,
+      flatPlaylist: true,
+      noWarnings: true,
+    });
 
-  const videos = [];
-  let playlistTitle = 'Unknown Playlist';
+    const videos = [];
+    if (result.entries) {
+      for (const entry of result.entries) {
+        if (!entry.id) continue;
+        
+        // Format duration (yt-dlp gives seconds, we want MM:SS or HH:MM:SS)
+        let durationStr = 'Unknown';
+        if (entry.duration) {
+          const h = Math.floor(entry.duration / 3600);
+          const m = Math.floor((entry.duration % 3600) / 60);
+          const s = Math.floor(entry.duration % 60);
+          durationStr = h > 0 
+            ? `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
+            : `${m}:${String(s).padStart(2, '0')}`;
+        }
 
-  try {
-    const contents = ytData?.contents?.twoColumnBrowseResultsRenderer?.tabs?.[0]
-      ?.tabRenderer?.content?.sectionListRenderer?.contents?.[0]
-      ?.itemSectionRenderer?.contents?.[0]
-      ?.playlistVideoListRenderer?.contents;
-
-    const headerRenderer = ytData?.header?.playlistHeaderRenderer;
-    playlistTitle = headerRenderer?.title?.simpleText || headerRenderer?.title?.runs?.[0]?.text || 'Unknown Playlist';
-
-    if (contents) {
-      for (const item of contents) {
-        const renderer = item?.playlistVideoRenderer;
-        if (!renderer) continue;
-        const videoId = renderer.videoId;
-        if (!videoId) continue;
-        const title = renderer.title?.runs?.[0]?.text || `Video ${videos.length + 1}`;
-        const duration = renderer.lengthText?.simpleText || 'Unknown';
-        videos.push({ id: videoId, title, duration });
+        videos.push({
+          id: entry.id,
+          title: entry.title || `Video ${videos.length + 1}`,
+          duration: durationStr,
+        });
       }
     }
-  } catch (e) {
-    // Fallback: regex extraction
-    const regex = /\"videoId\":\"([a-zA-Z0-9_-]{11})\"/g;
-    const seen = new Set();
-    let match;
-    while ((match = regex.exec(html)) !== null) {
-      if (!seen.has(match[1])) {
-        seen.add(match[1]);
-        videos.push({ id: match[1], title: `Video ${videos.length + 1}`, duration: 'Unknown' });
-      }
+
+    if (videos.length === 0) {
+      throw new Error('No videos found in this playlist. It may be private or empty.');
     }
-  }
 
-  if (videos.length === 0) {
-    throw new Error('No videos found in this playlist. It may be private or empty.');
-  }
+    return { 
+      title: result.title || 'Unknown Playlist', 
+      videoCount: videos.length, 
+      videos 
+    };
 
-  return { title: playlistTitle, videoCount: videos.length, videos };
+  } catch (err) {
+    throw new Error(`Failed to fetch playlist data: ${err.message || 'Unknown error'}`);
+  }
 }
 
 /**
