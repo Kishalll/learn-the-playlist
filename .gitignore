@@ -3,3 +3,5 @@ dist/
 .env
 server/data/*.json
 test-captions.js
+test-upload.js
+test-pdf.js

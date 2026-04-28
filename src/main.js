@@ -294,11 +294,14 @@ async function uploadFiles(files) {
 
     if (data.error) {
       setStatus(els.uploadStatus, `Error: ${data.error}`, 'error');
+      // Mark all pending files as failed
+      files.forEach(f => {
+        addFileItem(f.name, 'failed', { message: data.error });
+      });
       return;
     }
 
     // Update file items with results
-    els.fileList.innerHTML = '';
     data.results.forEach(r => {
       addFileItem(r.filename, r.status === 'success' ? 'done' : 'failed', r);
     });
@@ -317,15 +320,32 @@ async function uploadFiles(files) {
 function addFileItem(filename, status, info) {
   const ext = filename.split('.').pop().toUpperCase();
   const iconMap = { done: '✅', failed: '❌', pending: '⏳' };
-  const item = document.createElement('div');
-  item.className = 'file-item';
+  
+  // Find existing pending item for this file to update it
+  let item = Array.from(els.fileList.children).find(
+    el => el.dataset.filename === filename && el.dataset.status === 'pending'
+  );
+  
+  if (!item) {
+    item = document.createElement('div');
+    item.className = 'file-item';
+    item.dataset.filename = filename;
+    els.fileList.appendChild(item);
+  }
+  
+  item.dataset.status = status;
   item.innerHTML = `
     <span class="file-badge">${ext}</span>
     <span class="file-name" title="${filename}">${filename}</span>
     <span class="file-status">${iconMap[status] || '⏳'}</span>
   `;
-  if (info?.chunkCount) item.title = `${info.chunkCount} chunks, ${(info.charCount / 1000).toFixed(0)}K chars`;
-  els.fileList.appendChild(item);
+  
+  if (info?.chunkCount) {
+    item.title = `${info.chunkCount} chunks, ${(info.charCount / 1000).toFixed(0)}K chars`;
+  } else if (status === 'failed' && info?.message) {
+    item.title = info.message;
+    item.classList.add('error-item');
+  }
 }
 
 // ===== CHAT =====

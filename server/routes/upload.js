@@ -48,8 +48,20 @@ const router = Router();
  * POST /api/upload/files
  * Upload and process multiple files
  */
-router.post('/files', upload.array('files', 30), async (req, res) => {
-  const { apiKey } = req.body;
+router.post('/files', (req, res, next) => {
+  upload.array('files', 30)(req, res, function (err) {
+    if (err) {
+      return res.status(400).json({ error: err.message });
+    }
+    next();
+  });
+}, async (req, res) => {
+  let { apiKey } = req.body;
+
+  // Since multer parses the body AFTER the global middleware, we need to handle the placeholder here
+  if ((!apiKey || apiKey === '__env__') && process.env.NVIDIA_API_KEY) {
+    apiKey = process.env.NVIDIA_API_KEY;
+  }
 
   if (!apiKey) return res.status(400).json({ error: 'NVIDIA API key is required' });
   if (!req.files || req.files.length === 0) return res.status(400).json({ error: 'No files uploaded' });
@@ -60,60 +72,66 @@ router.post('/files', upload.array('files', 30), async (req, res) => {
     const sourceId = `file_${file.filename}`;
 
     try {
-      // Parse the file
-      const parsed = await parseFile(file.path, file.originalname);
+      try {
+        // Parse the file
+        const parsed = await parseFile(file.path, file.originalname);
 
-      // Chunk the content
-      const chunks = chunkText(parsed.content, {
-        sourceId,
-        sourceType: 'file',
-        sourceName: parsed.filename,
-        fileType: parsed.type,
-      });
+        // Chunk the content
+        const chunks = chunkText(parsed.content, {
+          sourceId,
+          sourceType: 'file',
+          sourceName: parsed.filename,
+          fileType: parsed.type,
+        });
 
-      if (chunks.length === 0) {
+        if (chunks.length === 0) {
+          results.push({
+            filename: file.originalname,
+            status: 'failed',
+            message: 'File content was empty after parsing',
+          });
+          continue; // Finally block will still run
+        }
+
+        // Generate embeddings
+        const texts = chunks.map(c => c.text);
+        const embeddings = await generateEmbeddings(texts, apiKey);
+
+        // Store in vector store
+        vectorStore.addChunks(chunks, embeddings);
+        vectorStore.addSource(sourceId, {
+          type: 'file',
+          name: parsed.filename,
+          fileType: parsed.type,
+          chunkCount: chunks.length,
+          charCount: parsed.charCount,
+        });
+
+        results.push({
+          filename: file.originalname,
+          status: 'success',
+          chunkCount: chunks.length,
+          charCount: parsed.charCount,
+          type: parsed.type,
+        });
+
+      } catch (err) {
+        let errorMsg = err.message || (typeof err === 'string' ? err : JSON.stringify(err));
         results.push({
           filename: file.originalname,
           status: 'failed',
-          message: 'File content was empty after parsing',
+          message: errorMsg,
         });
-        continue;
       }
+    } finally {
+      // Clean up uploaded file after processing
+      try {
+        fs.unlinkSync(file.path);
+      } catch (e) { /* ignore cleanup errors */ }
 
-      // Generate embeddings
-      const texts = chunks.map(c => c.text);
-      const embeddings = await generateEmbeddings(texts, apiKey);
-
-      // Store in vector store
-      vectorStore.addChunks(chunks, embeddings);
-      vectorStore.addSource(sourceId, {
-        type: 'file',
-        name: parsed.filename,
-        fileType: parsed.type,
-        chunkCount: chunks.length,
-        charCount: parsed.charCount,
-      });
-
-      results.push({
-        filename: file.originalname,
-        status: 'success',
-        chunkCount: chunks.length,
-        charCount: parsed.charCount,
-        type: parsed.type,
-      });
-
-    } catch (err) {
-      results.push({
-        filename: file.originalname,
-        status: 'failed',
-        message: err.message,
-      });
+      // Small delay between files to avoid NVIDIA API rate limits
+      await new Promise(r => setTimeout(r, 300));
     }
-
-    // Clean up uploaded file after processing
-    try {
-      fs.unlinkSync(file.path);
-    } catch (e) { /* ignore cleanup errors */ }
   }
 
   res.json({
