@@ -3,6 +3,7 @@
 - [x] shows no captions found in all vids
 - [x] nvidia api fetch error
 - [x] file upload rate limited while sending to nvidia api
+- [x] make app identify 3 types of pdf(searchable,scaned,empty)
 - [ ] file remove from knowledge base
 - [ ] when i ask about a vid , it says bout it but ig it includes unnessary vids as source
 - [ ] add cancel button in playlist processing

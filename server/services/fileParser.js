@@ -51,6 +51,21 @@ export async function parseFile(filePath, originalName) {
 async function parsePDF(filePath) {
   const buffer = fs.readFileSync(filePath);
   const data = await pdfParse(buffer);
+  
+  const text = data.text.trim();
+  const numPages = data.numpages;
+  const sizeBytes = buffer.byteLength;
+  
+  // If it extracts almost no text, classify the failure reason
+  if (text.length < 50) {
+    // If it's a large file (>50KB) or has multiple pages, it's almost certainly an image scan
+    if (sizeBytes > 50000 || numPages > 1) {
+      throw new Error('Flat Scanned PDF detected. Please use <a href="https://www.ilovepdf.com/ocr-pdf" target="_blank">iLovePDF OCR</a> to convert this image-based PDF into searchable text before uploading.');
+    } else {
+      throw new Error('Completely Empty PDF. No text could be extracted.');
+    }
+  }
+  
   return data.text;
 }
 

@@ -334,10 +334,19 @@ function addFileItem(filename, status, info) {
   }
   
   item.dataset.status = status;
+  
+  let errorMsgHtml = '';
+  if (status === 'failed' && info?.message) {
+    errorMsgHtml = `<div class="file-error-text">${info.message}</div>`;
+  }
+
   item.innerHTML = `
-    <span class="file-badge">${ext}</span>
-    <span class="file-name" title="${filename}">${filename}</span>
-    <span class="file-status">${iconMap[status] || '⏳'}</span>
+    <div class="file-item-header">
+      <span class="file-badge">${ext}</span>
+      <span class="file-name" title="${filename}">${filename}</span>
+      <span class="file-status">${iconMap[status] || '⏳'}</span>
+    </div>
+    ${errorMsgHtml}
   `;
   
   if (info?.chunkCount) {
