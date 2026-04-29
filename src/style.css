@@ -184,6 +184,7 @@ input::placeholder { color: var(--text-muted); }
 .video-item .video-title { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-secondary); }
 .video-item.done .video-title { color: var(--text-primary); }
 .video-item .video-duration { color: var(--text-muted); font-size: 0.75rem; font-variant-numeric: tabular-nums; }
+.source-remove-btn.hidden { display: none; }
 
 /* Drop Zone */
 .drop-zone {
@@ -220,6 +221,37 @@ input::placeholder { color: var(--text-muted); }
   padding: 6px 10px; border-radius: 4px; border-left: 2px solid var(--error);
   margin-top: 4px; word-break: break-word; line-height: 1.4;
 }
+
+.source-remove-btn {
+  border: 1px solid rgba(255, 107, 107, 0.35);
+  background: rgba(255, 107, 107, 0.1);
+  color: #ff8e8e;
+  border-radius: 6px;
+  padding: 2px 7px;
+  font-size: 0.76rem;
+  line-height: 1.2;
+  cursor: pointer;
+  transition: all var(--transition);
+  flex-shrink: 0;
+}
+.source-remove-btn:hover { background: rgba(255, 107, 107, 0.18); }
+.source-remove-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.source-retry-btn {
+  border: 1px solid rgba(67, 233, 123, 0.35);
+  background: rgba(67, 233, 123, 0.1);
+  color: #7ff0a7;
+  border-radius: 6px;
+  padding: 2px 8px;
+  font-size: 0.74rem;
+  line-height: 1.2;
+  cursor: pointer;
+  transition: all var(--transition);
+  flex-shrink: 0;
+}
+.source-retry-btn:hover { background: rgba(67, 233, 123, 0.2); }
+.source-retry-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.source-retry-btn.hidden { display: none; }
 
 /* Convert Card */
 .convert-card {

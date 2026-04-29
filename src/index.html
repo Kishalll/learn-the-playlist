@@ -31,7 +31,21 @@
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
           </button>
         </div>
-        <p class="modal-hint">Your key is stored locally and never shared</p>
+        <p class="modal-hint">Your key is validated and saved to the server .env file</p>
+      </div>
+    </div>
+
+    <!-- Resume Modal -->
+    <div id="resume-modal" class="modal-overlay hidden">
+      <div class="modal-card">
+        <div class="modal-icon">⏯️</div>
+        <h2>Resume Interrupted Processing?</h2>
+        <p id="resume-modal-summary">We found interrupted items.</p>
+        <div class="input-group">
+          <button id="resume-later" class="btn btn-outline">Not Now</button>
+          <button id="resume-now" class="btn btn-primary">Resume Now</button>
+        </div>
+        <p class="modal-hint">Held items never auto-run. You can retry each item manually later.</p>
       </div>
     </div>
 

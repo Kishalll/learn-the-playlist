@@ -23,6 +23,7 @@ TEACHING RULES:
 9. Format your responses well — use headings, bullet points, numbered lists, and code blocks where appropriate.
 10. When solving problems, show each step clearly and explain WHY each step is taken.
 11. If a concept has prerequisites, briefly mention what the student should know first.
+12. When listing available sources, list UNIQUE source names only (no duplicates).
 
 Remember: You are a patient, encouraging teacher. The student's understanding is your top priority.`;
 
@@ -57,22 +58,56 @@ export async function processMessage(sessionId, userMessage, apiKey) {
   let contextText = '';
   let retrievedSources = [];
 
+  const asksForSourceList = /\b(source|sources|what can you access|available sources|knowledge base|what do you have)\b/i.test(userMessage);
+
   if (vectorStore.size > 0) {
     const queryEmbedding = await embedQuery(userMessage, apiKey);
     const results = vectorStore.search(queryEmbedding, 8);
 
-    retrievedSources = results.map(r => ({
-      text: r.text.substring(0, 200) + '...',
-      source: r.metadata.sourceName || r.metadata.sourceId,
-      type: r.metadata.sourceType,
-      similarity: Math.round(r.similarity * 100),
-    }));
+    const uniqueSourceMap = new Map();
+    for (const r of results) {
+      const sourceId = r.metadata.sourceId || r.metadata.sourceName || 'unknown_source';
+      const sourceName = r.metadata.sourceName || r.metadata.sourceId || 'Unknown source';
+      const existing = uniqueSourceMap.get(sourceId);
 
-    contextText = results.map((r, i) => {
+      if (!existing || r.similarity > existing._sim) {
+        uniqueSourceMap.set(sourceId, {
+          sourceId,
+          source: sourceName,
+          type: r.metadata.sourceType,
+          similarity: Math.round(r.similarity * 100),
+          text: r.text.substring(0, 200) + '...',
+          _sim: r.similarity,
+        });
+      }
+    }
+
+    retrievedSources = Array.from(uniqueSourceMap.values())
+      .sort((a, b) => b._sim - a._sim)
+      .map(({ _sim, ...source }) => source);
+
+    contextText = results.map((r) => {
       const source = r.metadata.sourceName || r.metadata.sourceId;
       const type = r.metadata.sourceType === 'video' ? '🎥 Video' : '📄 File';
-      return `[Source ${i + 1}: ${type} — "${source}"]\n${r.text}`;
+      return `[Context Chunk — ${type} — "${source}"]\n${r.text}`;
     }).join('\n\n---\n\n');
+
+    const sourceCatalog = retrievedSources.map((s, i) => {
+      const type = s.type === 'video' ? 'Video' : 'File';
+      return `${i + 1}. ${type} — ${s.source}`;
+    }).join('\n');
+
+    contextText += `\n\n---\n\n[UNIQUE SOURCE CATALOG]\n${sourceCatalog}`;
+
+    if (asksForSourceList) {
+      const allSources = vectorStore.getSources();
+      const globalCatalog = allSources.map((s, i) => {
+        const type = s.type === 'video' ? 'Video' : 'File';
+        return `${i + 1}. ${type} — ${s.name || s.id}`;
+      }).join('\n');
+
+      contextText += `\n\n---\n\n[COMPLETE KNOWLEDGE BASE SOURCES]\n${globalCatalog}`;
+    }
   }
 
   // 3. Build the augmented messages array
@@ -84,7 +119,7 @@ export async function processMessage(sessionId, userMessage, apiKey) {
   if (contextText) {
     messages.push({
       role: 'system',
-      content: `KNOWLEDGE BASE (retrieved relevant sections):\n\n${contextText}\n\nUse this knowledge base to answer the student's question. Always cite which source you're drawing from.`,
+      content: `KNOWLEDGE BASE (retrieved relevant sections):\n\n${contextText}\n\nUse this knowledge base to answer the student's question. Always cite which source you're drawing from. If the user asks for available sources, use the UNIQUE SOURCE CATALOG or COMPLETE KNOWLEDGE BASE SOURCES and do not repeat duplicates.`,
     });
   } else {
     messages.push({
@@ -129,6 +164,13 @@ export function addAssistantMessage(sessionId, content) {
  */
 export function clearConversation(sessionId) {
   conversations.delete(sessionId);
+}
+
+/**
+ * Clear all conversation sessions
+ */
+export function clearAllConversations() {
+  conversations.clear();
 }
 
 /**
