@@ -171,6 +171,68 @@ a:hover { color: var(--accent-hover); text-decoration: underline; }
 .modal-card h2 { font-size: var(--text-heading); font-weight: var(--weight-bold); line-height: var(--leading-tight); margin-bottom: var(--space-sm); }
 .modal-card p { color: var(--text-secondary); font-size: var(--text-body); margin-bottom: var(--space-lg); line-height: var(--leading-body); }
 .modal-hint { font-size: var(--text-label); color: var(--text-muted); margin-top: var(--space-lg) !important; margin-bottom: 0 !important; }
+
+.settings-card {
+  max-width: 620px;
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+.settings-card h2,
+.settings-card p {
+  margin: 0;
+}
+.settings-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+}
+.settings-header .btn-icon {
+  min-width: 36px;
+  min-height: 36px;
+}
+.settings-section {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface-soft);
+  padding: var(--space-md);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+.settings-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+}
+.settings-label {
+  font-size: var(--text-body);
+  font-weight: var(--weight-semibold);
+}
+.settings-value {
+  color: var(--text-secondary);
+  font-size: var(--text-label);
+}
+.settings-key-group {
+  align-items: stretch;
+}
+.settings-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+}
+.settings-footer {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: var(--space-xs);
+}
+#settings-status .status-msg {
+  margin-bottom: 0;
+}
+
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
 
@@ -223,7 +285,8 @@ a.btn.btn-primary:visited {
 .input-group { display: flex; gap: var(--space-sm); }
 .input-group > input { min-width: 0; }
 #load-playlist,
-#cancel-playlist { flex-shrink: 0; }
+#cancel-playlist,
+#retry-playlist { flex-shrink: 0; }
 .input-group input, input[type="text"], input[type="password"] {
   flex: 1; padding: 10px var(--space-lg);
   background: var(--bg-input); border: 1px solid var(--border);
@@ -764,6 +827,31 @@ kbd {
 
   #tab-playlist .input-group #playlist-url {
     flex-basis: 100%;
+  }
+
+  .settings-card {
+    width: 94%;
+    padding: var(--space-xl);
+  }
+
+  .settings-key-group {
+    flex-wrap: wrap;
+  }
+
+  .settings-key-group input,
+  .settings-key-group button {
+    flex-basis: 100%;
+  }
+
+  .settings-actions,
+  .settings-footer {
+    justify-content: stretch;
+  }
+
+  .settings-actions .btn,
+  .settings-footer .btn {
+    width: 100%;
+    justify-content: center;
   }
 
   .btn-send {

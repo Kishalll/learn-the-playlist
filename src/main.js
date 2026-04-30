@@ -12,6 +12,7 @@ const state = {
   sessionId: localStorage.getItem('session_id') || crypto.randomUUID(),
   isStreaming: false,
   isPlaylistProcessing: false,
+  playlistPaused: false,
   cancelPlaylistInFlight: false,
   playlistAbortController: null,
   sidebarOpen: true,
@@ -42,6 +43,17 @@ const els = {
   resumeModalSummary: $('#resume-modal-summary'),
   resumeNow: $('#resume-now'),
   resumeLater: $('#resume-later'),
+  settingsModal: $('#settings-modal'),
+  settingsModalCard: $('#settings-modal .modal-card'),
+  settingsClose: $('#settings-close'),
+  settingsBackHome: $('#settings-back-home'),
+  settingsApiKeyInput: $('#settings-api-key-input'),
+  settingsSaveKey: $('#settings-save-key'),
+  settingsDeleteKey: $('#settings-delete-key'),
+  settingsKeyStatus: $('#settings-key-status'),
+  settingsStatus: $('#settings-status'),
+  settingsClearSources: $('#settings-clear-sources'),
+  settingsClearChat: $('#settings-clear-chat'),
   apiKeyInput: $('#api-key-input'),
   apiKeySave: $('#api-key-save'),
   apiHint: $('#api-modal .modal-hint'),
@@ -52,6 +64,7 @@ const els = {
   playlistUrl: $('#playlist-url'),
   loadPlaylist: $('#load-playlist'),
   cancelPlaylist: $('#cancel-playlist'),
+  retryPlaylist: $('#retry-playlist'),
   loadPlaylistText: $('#load-playlist-text'),
   playlistSpinner: $('#playlist-spinner'),
   playlistStatus: $('#playlist-status'),
@@ -84,6 +97,8 @@ const FOCUSABLE_SELECTOR = [
   'textarea:not([disabled])',
   '[tabindex]:not([tabindex="-1"])',
 ].join(',');
+
+const CHAT_INPUT_PLACEHOLDER = 'Ask a question about your loaded sources...';
 
 // ===== INIT =====
 async function init() {
@@ -125,7 +140,9 @@ async function refreshKnowledgeAndSnapshots(showResumePrompt) {
 function showApp() {
   deactivateModal(els.apiModal, { restoreFocus: false });
   deactivateModal(els.resumeModal, { restoreFocus: false });
+  deactivateModal(els.settingsModal, { restoreFocus: false });
   els.mainLayout.style.display = 'flex';
+  syncApiKeyDependentUI();
 }
 
 function showModal(message = '', isError = false) {
@@ -317,9 +334,23 @@ function setupEventListeners() {
   // API Key
   els.apiKeySave.addEventListener('click', saveApiKey);
   els.apiKeyInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') saveApiKey(); });
-  els.changeKey.addEventListener('click', () => {
-    showModal();
-  });
+  els.changeKey.addEventListener('click', () => openSettingsModal());
+  if (els.settingsClose) els.settingsClose.addEventListener('click', closeSettingsModal);
+  if (els.settingsBackHome) els.settingsBackHome.addEventListener('click', closeSettingsModal);
+  if (els.settingsSaveKey) els.settingsSaveKey.addEventListener('click', saveSettingsApiKey);
+  if (els.settingsApiKeyInput) {
+    els.settingsApiKeyInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') saveSettingsApiKey();
+    });
+  }
+  if (els.settingsDeleteKey) els.settingsDeleteKey.addEventListener('click', deleteSettingsApiKey);
+  if (els.settingsClearSources) els.settingsClearSources.addEventListener('click', clearAllSourcesFromSettings);
+  if (els.settingsClearChat) {
+    els.settingsClearChat.addEventListener('click', async () => {
+      await clearChat();
+      setStatus(els.settingsStatus, 'Chat cleared.', 'success');
+    });
+  }
 
   // Sidebar
   els.sidebarToggle.addEventListener('click', toggleSidebar);
@@ -335,6 +366,9 @@ function setupEventListeners() {
   els.loadPlaylist.addEventListener('click', loadPlaylist);
   if (els.cancelPlaylist) {
     els.cancelPlaylist.addEventListener('click', cancelPlaylistProcessing);
+  }
+  if (els.retryPlaylist) {
+    els.retryPlaylist.addEventListener('click', retryPausedPlaylist);
   }
   els.playlistUrl.addEventListener('keydown', (e) => { if (e.key === 'Enter') loadPlaylist(); });
 
@@ -453,6 +487,111 @@ function handleGlobalKeydown(event) {
 }
 
 // ===== API KEY =====
+function hasApiKey() {
+  return Boolean(state.apiKey);
+}
+
+function syncApiKeyDependentUI() {
+  const missingKey = !hasApiKey();
+  if (!state.isStreaming) {
+    els.sendBtn.disabled = missingKey;
+  }
+  els.chatInput.placeholder = missingKey
+    ? 'Add API key in Settings to continue chatting...'
+    : CHAT_INPUT_PLACEHOLDER;
+}
+
+function closeSettingsModal() {
+  deactivateModal(els.settingsModal, { restoreFocus: true });
+}
+
+async function refreshSettingsKeyStatus() {
+  if (!els.settingsKeyStatus) return;
+
+  try {
+    const response = await fetch('/api/config');
+    const raw = await response.text();
+    const config = raw ? JSON.parse(raw) : {};
+
+    if (config.hasKey && config.isValid) {
+      els.settingsKeyStatus.textContent = `Connected (${config.keyPreview || 'nvapi-***'})`;
+      if (els.settingsDeleteKey) els.settingsDeleteKey.disabled = false;
+      return;
+    }
+
+    if (config.hasKey && !config.isValid) {
+      els.settingsKeyStatus.textContent = 'Configured key is invalid';
+      if (els.settingsDeleteKey) els.settingsDeleteKey.disabled = false;
+      return;
+    }
+
+    els.settingsKeyStatus.textContent = 'Missing';
+    if (els.settingsDeleteKey) els.settingsDeleteKey.disabled = true;
+  } catch {
+    els.settingsKeyStatus.textContent = hasApiKey() ? 'Connected' : 'Unknown';
+    if (els.settingsDeleteKey) els.settingsDeleteKey.disabled = !hasApiKey();
+  }
+}
+
+function openSettingsModal(statusMessage = '', isError = false) {
+  if (els.settingsStatus) {
+    els.settingsStatus.innerHTML = '';
+    if (statusMessage) {
+      setStatus(els.settingsStatus, statusMessage, isError ? 'error' : '');
+    }
+  }
+
+  if (els.settingsApiKeyInput) {
+    els.settingsApiKeyInput.value = '';
+  }
+
+  refreshSettingsKeyStatus();
+  activateModal(els.settingsModal, {
+    initialFocus: els.settingsApiKeyInput,
+    onEscape: closeSettingsModal,
+  });
+}
+
+async function saveApiKeyToServer(key) {
+  const response = await fetch('/api/config/api-key', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ apiKey: key }),
+  });
+  const raw = await response.text();
+  let data = {};
+  try {
+    data = raw ? JSON.parse(raw) : {};
+  } catch {
+    throw new Error(raw || `API request failed (${response.status})`);
+  }
+
+  if (!response.ok || data.error) {
+    throw new Error(data.error || 'Could not save API key');
+  }
+
+  return data;
+}
+
+async function removeApiKeyFromServer() {
+  const response = await fetch('/api/config/api-key', {
+    method: 'DELETE',
+  });
+  const raw = await response.text();
+  let data = {};
+  try {
+    data = raw ? JSON.parse(raw) : {};
+  } catch {
+    throw new Error(raw || `API request failed (${response.status})`);
+  }
+
+  if (!response.ok || data.error) {
+    throw new Error(data.error || 'Could not delete API key');
+  }
+
+  return data;
+}
+
 async function saveApiKey() {
   const key = els.apiKeyInput.value.trim();
   if (!key) {
@@ -464,24 +603,11 @@ async function saveApiKey() {
   setApiHint('Validating key and saving it to .env...');
 
   try {
-    const response = await fetch('/api/config/api-key', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ apiKey: key }),
-    });
-    const raw = await response.text();
-    let data = {};
-    try {
-      data = raw ? JSON.parse(raw) : {};
-    } catch (e) {
-      throw new Error(raw || `API request failed (${response.status})`);
-    }
-
-    if (!response.ok || data.error) {
-      throw new Error(data.error || 'Could not save API key');
-    }
+    const data = await saveApiKeyToServer(key);
 
     state.apiKey = '__env__';
+    state.envKeyPreview = data.keyPreview || null;
+    syncApiKeyDependentUI();
     setApiHint(`Connected (${data.keyPreview || 'nvapi-***'})`);
     els.apiKeyInput.value = '';
     els.apiKeyInput.blur();
@@ -494,6 +620,67 @@ async function saveApiKey() {
 
   showApp();
   await refreshKnowledgeAndSnapshots(true);
+}
+
+async function saveSettingsApiKey() {
+  const key = els.settingsApiKeyInput?.value.trim() || '';
+  if (!key) {
+    setStatus(els.settingsStatus, 'Enter a valid NVIDIA API key.', 'error');
+    return;
+  }
+
+  els.settingsSaveKey.disabled = true;
+  setStatus(els.settingsStatus, 'Validating and saving API key...');
+
+  try {
+    const data = await saveApiKeyToServer(key);
+    state.apiKey = '__env__';
+    state.envKeyPreview = data.keyPreview || null;
+    syncApiKeyDependentUI();
+    if (els.settingsApiKeyInput) els.settingsApiKeyInput.value = '';
+    setStatus(els.settingsStatus, `Connected (${data.keyPreview || 'nvapi-***'}).`, 'success');
+    await refreshSettingsKeyStatus();
+    await refreshKnowledgeAndSnapshots(false);
+  } catch (err) {
+    setStatus(els.settingsStatus, err.message, 'error');
+  } finally {
+    els.settingsSaveKey.disabled = false;
+  }
+}
+
+async function deleteSettingsApiKey() {
+  const confirmed = window.confirm(
+    'Delete saved API key from this workspace?\n\nYou will stay in chat, but sending new messages and processing sources will require adding a key again.'
+  );
+  if (!confirmed) return;
+
+  els.settingsDeleteKey.disabled = true;
+  setStatus(els.settingsStatus, 'Removing API key...');
+
+  try {
+    await removeApiKeyFromServer();
+    state.apiKey = '';
+    state.envKeyPreview = null;
+    syncApiKeyDependentUI();
+    setStatus(els.settingsStatus, 'API key removed. Add a key to continue.', 'success');
+    await refreshSettingsKeyStatus();
+  } catch (err) {
+    setStatus(els.settingsStatus, err.message, 'error');
+    await refreshSettingsKeyStatus();
+  } finally {
+    els.settingsDeleteKey.disabled = false;
+  }
+}
+
+function requireApiKey(message, statusContainer) {
+  if (hasApiKey()) return true;
+
+  const prompt = message || 'Add your NVIDIA API key in Settings to continue.';
+  if (statusContainer) {
+    setStatus(statusContainer, prompt, 'error');
+  }
+  openSettingsModal(prompt, true);
+  return false;
 }
 
 function setApiHint(message, isError = false) {
@@ -517,7 +704,8 @@ function isApiKeyIssue(message) {
 
 function handleApiKeyFailure(message) {
   state.apiKey = '';
-  showModal(`The saved API key failed: ${message}. Enter a new key to update .env.`, true);
+  syncApiKeyDependentUI();
+  openSettingsModal(`The saved API key failed: ${message}. Add a new key to continue.`, true);
 }
 
 // ===== SIDEBAR =====
@@ -545,6 +733,7 @@ function switchTab(tabName) {
 // ===== PLAYLIST LOADING =====
 async function loadPlaylist() {
   if (state.isPlaylistProcessing) return;
+  if (!requireApiKey('Add API key in Settings before loading a playlist.', els.playlistStatus)) return;
 
   const url = els.playlistUrl.value.trim();
   if (!url) {
@@ -605,6 +794,8 @@ async function resumePlaylist() {
 }
 
 async function resumeFiles() {
+  if (!requireApiKey('Add API key in Settings before resuming files.', els.uploadStatus)) return;
+
   try {
     setStatus(els.uploadStatus, 'Resuming paused file processing...');
     const response = await fetch('/api/upload/resume', {
@@ -640,7 +831,19 @@ async function loadPendingSnapshots() {
 
     state.playlistSnapshot = playlistRes.ok ? await playlistRes.json() : null;
     state.uploadSnapshot = uploadRes.ok ? await uploadRes.json() : null;
-    state.isPlaylistProcessing = !!state.playlistSnapshot?.running;
+
+    if (!state.playlistSnapshot?.canResume) {
+      state.playlistPaused = false;
+    }
+
+    if (state.playlistPaused) {
+      state.isPlaylistProcessing = false;
+    } else {
+      state.isPlaylistProcessing = !!state.playlistSnapshot?.running;
+      if (!state.isPlaylistProcessing && !!state.playlistSnapshot?.canResume) {
+        state.playlistPaused = true;
+      }
+    }
 
     updatePlaylistControls();
     hydratePendingStates();
@@ -648,12 +851,16 @@ async function loadPendingSnapshots() {
     state.playlistSnapshot = null;
     state.uploadSnapshot = null;
     state.isPlaylistProcessing = false;
+    state.playlistPaused = false;
     updatePlaylistControls();
   }
 }
 
 function updatePlaylistControls() {
   const isProcessing = state.isPlaylistProcessing;
+  const showRetry = !isProcessing && state.playlistPaused;
+
+  els.loadPlaylist.style.display = showRetry ? 'none' : 'inline-flex';
   els.loadPlaylist.disabled = isProcessing;
   els.loadPlaylistText.style.display = isProcessing ? 'none' : 'inline';
   els.playlistSpinner.style.display = isProcessing ? 'block' : 'none';
@@ -662,6 +869,11 @@ function updatePlaylistControls() {
     els.cancelPlaylist.style.display = isProcessing ? 'inline-flex' : 'none';
     els.cancelPlaylist.disabled = !isProcessing || state.cancelPlaylistInFlight;
     els.cancelPlaylist.textContent = state.cancelPlaylistInFlight ? 'Cancelling...' : 'Cancel';
+  }
+
+  if (els.retryPlaylist) {
+    els.retryPlaylist.style.display = showRetry ? 'inline-flex' : 'none';
+    els.retryPlaylist.disabled = isProcessing || state.cancelPlaylistInFlight;
   }
 }
 
@@ -706,6 +918,7 @@ async function cancelPlaylistProcessing() {
       state.playlistAbortController.abort();
     }
 
+    state.playlistPaused = true;
     state.isPlaylistProcessing = false;
     updatePlaylistControls();
     markRemainingPlaylistItemsHeld();
@@ -714,7 +927,7 @@ async function cancelPlaylistProcessing() {
     }
 
     setStatus(els.playlistStatus, 'Playlist paused. Remaining videos are held; use Retry on any video to continue later.', 'success');
-    await refreshKnowledgeAndSnapshots(false);
+    await loadSources();
   } catch (err) {
     setStatus(els.playlistStatus, `Could not cancel playlist processing: ${err.message}`, 'error');
     if (isApiKeyIssue(err.message)) handleApiKeyFailure(err.message);
@@ -724,9 +937,28 @@ async function cancelPlaylistProcessing() {
   }
 }
 
+async function retryPausedPlaylist() {
+  if (state.isPlaylistProcessing || state.cancelPlaylistInFlight) return;
+  if (!requireApiKey('Add API key in Settings before resuming this playlist.', els.playlistStatus)) return;
+
+  state.playlistPaused = false;
+  updatePlaylistControls();
+  setStatus(els.playlistStatus, 'Resuming paused playlist videos...');
+
+  const resumed = await resumePlaylist();
+  if (resumed) return;
+
+  await loadPendingSnapshots();
+  if (state.playlistSnapshot?.canResume) {
+    state.playlistPaused = true;
+    updatePlaylistControls();
+  }
+}
+
 async function streamPlaylistRequest(endpoint, payload) {
   const shouldClearList = endpoint === '/api/playlist/load' || endpoint === '/api/playlist/resume';
   let success = false;
+  state.playlistPaused = false;
   state.isPlaylistProcessing = true;
   state.playlistAbortController = new AbortController();
   updatePlaylistControls();
@@ -957,6 +1189,7 @@ function handleFileSelect(e) {
 
 async function uploadFiles(files) {
   if (files.length === 0) return;
+  if (!requireApiKey('Add API key in Settings before uploading files.', els.uploadStatus)) return;
 
   // Show file items as pending
   files.forEach(f => addFileItem(f.name, 'pending'));
@@ -1073,6 +1306,7 @@ function addFileItem(filename, status, info) {
 async function sendMessage() {
   const message = els.chatInput.value.trim();
   if (!message || state.isStreaming) return;
+  if (!requireApiKey('Add API key in Settings before sending a message.')) return;
 
   state.isStreaming = true;
   els.sendBtn.disabled = true;
@@ -1251,7 +1485,7 @@ async function sendMessage() {
   }
 
   state.isStreaming = false;
-  els.sendBtn.disabled = false;
+  syncApiKeyDependentUI();
   els.chatInput.focus();
 }
 
@@ -1369,6 +1603,58 @@ async function clearChat() {
       body: JSON.stringify({ sessionId: state.sessionId }),
     });
   } catch (e) { /* ignore */ }
+}
+
+async function clearAllSourcesFromSettings() {
+  const confirmed = window.confirm(
+    'Clear all indexed sources and reset workspace data?\n\nThis removes playlist transcripts, uploaded document chunks, and chat memory.'
+  );
+  if (!confirmed) return;
+
+  els.settingsClearSources.disabled = true;
+  setStatus(els.settingsStatus, 'Clearing all sources...');
+
+  try {
+    const response = await fetch('/api/playlist/clear', { method: 'DELETE' });
+    const raw = await response.text();
+    let data = {};
+    try {
+      data = raw ? JSON.parse(raw) : {};
+    } catch {
+      data = {};
+    }
+
+    if (!response.ok || data.error) {
+      throw new Error(data.error || 'Could not clear all sources');
+    }
+
+    if (state.playlistAbortController) {
+      state.playlistAbortController.abort();
+    }
+    state.playlistAbortController = null;
+    state.isPlaylistProcessing = false;
+    state.playlistPaused = false;
+    state.cancelPlaylistInFlight = false;
+    updatePlaylistControls();
+
+    els.videoList.innerHTML = '';
+    els.fileList.innerHTML = '';
+    els.playlistStatus.innerHTML = '';
+    els.uploadStatus.innerHTML = '';
+    els.messages.innerHTML = '';
+    els.welcomeScreen.classList.remove('hidden');
+    closeSourcePanel();
+
+    state.sessionId = crypto.randomUUID();
+    localStorage.setItem('session_id', state.sessionId);
+
+    await refreshKnowledgeAndSnapshots(false);
+    setStatus(els.settingsStatus, 'All sources cleared. Workspace reset complete.', 'success');
+  } catch (err) {
+    setStatus(els.settingsStatus, `Could not clear all sources: ${err.message}`, 'error');
+  } finally {
+    els.settingsClearSources.disabled = false;
+  }
 }
 
 // ===== UTILITIES =====
@@ -1554,6 +1840,8 @@ function onFileRowActionClick(event) {
 }
 
 async function retryPlaylistVideo(videoId, button) {
+  if (!requireApiKey('Add API key in Settings before retrying this video.', els.playlistStatus)) return;
+
   button.disabled = true;
   try {
     setStatus(els.playlistStatus, 'Retrying this video...');
@@ -1572,7 +1860,16 @@ async function retryPlaylistVideo(videoId, button) {
       hydrateVideoItemFromSnapshot(data.item);
     }
 
-    setStatus(els.playlistStatus, 'Video re-indexed successfully.', 'success');
+    const finalStatus = data.result?.status || data.item?.status;
+    const finalMessage = data.result?.message || data.item?.message || '';
+    if (finalStatus === 'done') {
+      setStatus(els.playlistStatus, 'Video re-indexed successfully.', 'success');
+    } else if (finalStatus === 'failed') {
+      setStatus(els.playlistStatus, `Video retry finished, but it still failed: ${finalMessage || 'Unknown error'}`, 'error');
+    } else {
+      setStatus(els.playlistStatus, finalMessage || 'Video retry finished.', 'success');
+    }
+
     await refreshKnowledgeAndSnapshots(false);
   } catch (err) {
     setStatus(els.playlistStatus, `Could not retry this video: ${err.message}`, 'error');
@@ -1583,6 +1880,8 @@ async function retryPlaylistVideo(videoId, button) {
 }
 
 async function retryUploadedFile(itemId, button) {
+  if (!requireApiKey('Add API key in Settings before retrying this file.', els.uploadStatus)) return;
+
   button.disabled = true;
   try {
     setStatus(els.uploadStatus, 'Retrying this file...');
@@ -1601,7 +1900,16 @@ async function retryUploadedFile(itemId, button) {
       hydrateFileItemFromSnapshot(data.item);
     }
 
-    setStatus(els.uploadStatus, 'File re-indexed successfully.', 'success');
+    const finalStatus = data.item?.status;
+    const finalMessage = data.item?.message || '';
+    if (finalStatus === 'done') {
+      setStatus(els.uploadStatus, 'File re-indexed successfully.', 'success');
+    } else if (finalStatus === 'failed') {
+      setStatus(els.uploadStatus, `File retry finished, but it still failed: ${finalMessage || 'Unknown error'}`, 'error');
+    } else {
+      setStatus(els.uploadStatus, finalMessage || 'File retry finished.', 'success');
+    }
+
     await refreshKnowledgeAndSnapshots(false);
   } catch (err) {
     setStatus(els.uploadStatus, `Could not retry this file: ${err.message}`, 'error');

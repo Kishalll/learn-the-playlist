@@ -58,6 +58,15 @@ function upsertEnvKey(filePath, key, value) {
   fs.writeFileSync(filePath, text, 'utf-8');
 }
 
+function removeEnvKey(filePath, key) {
+  if (!fs.existsSync(filePath)) return;
+  const current = fs.readFileSync(filePath, 'utf-8');
+  const lines = current ? current.split(/\r?\n/) : [];
+  const filtered = lines.filter((entry) => !entry.startsWith(`${key}=`));
+  const text = filtered.join('\n').replace(/\n*$/, '\n');
+  fs.writeFileSync(filePath, text, 'utf-8');
+}
+
 async function getServerKeyStatus(forceCheck = false) {
   const key = String(process.env.NVIDIA_API_KEY || '').trim();
   if (!key) {
@@ -135,6 +144,23 @@ app.post('/api/config/api-key', async (req, res) => {
     return res.json({ success: true, keyPreview: `nvapi-***${key.slice(-4)}` });
   } catch (err) {
     return res.status(500).json({ error: `Failed to save key to .env: ${err.message}` });
+  }
+});
+
+// Remove API key from root .env and runtime env
+app.delete('/api/config/api-key', (req, res) => {
+  try {
+    removeEnvKey(ROOT_ENV_PATH, 'NVIDIA_API_KEY');
+    delete process.env.NVIDIA_API_KEY;
+    keyHealthCache = {
+      key: null,
+      checkedAt: Date.now(),
+      isValid: false,
+      reason: 'No API key configured',
+    };
+    return res.json({ success: true, hasKey: false });
+  } catch (err) {
+    return res.status(500).json({ error: `Failed to remove key from .env: ${err.message}` });
   }
 });
 

@@ -49,6 +49,49 @@
       </div>
     </div>
 
+    <!-- Settings Modal -->
+    <div id="settings-modal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="settings-modal-title" aria-describedby="settings-modal-desc" aria-hidden="true">
+      <div class="modal-card settings-card" tabindex="-1">
+        <div class="settings-header">
+          <h2 id="settings-modal-title">Settings</h2>
+          <button id="settings-close" class="btn-icon" aria-label="Close settings">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+          </button>
+        </div>
+        <p id="settings-modal-desc">Manage API access and workspace data.</p>
+
+        <div class="settings-section">
+          <div class="settings-row">
+            <span class="settings-label">API Key</span>
+            <span id="settings-key-status" class="settings-value">Checking...</span>
+          </div>
+          <div class="input-group settings-key-group">
+            <input type="password" id="settings-api-key-input" placeholder="nvapi-..." autocomplete="off" aria-label="NVIDIA API key" />
+            <button id="settings-save-key" class="btn btn-primary">Save Key</button>
+          </div>
+          <div class="settings-actions">
+            <button id="settings-delete-key" class="btn btn-outline btn-sm">Delete Key</button>
+          </div>
+          <div id="settings-status" class="status-area" role="status" aria-live="polite" aria-atomic="true"></div>
+        </div>
+
+        <div class="settings-section">
+          <div class="settings-row">
+            <span class="settings-label">Workspace</span>
+            <span class="settings-value">Maintenance</span>
+          </div>
+          <div class="settings-actions">
+            <button id="settings-clear-sources" class="btn btn-outline btn-sm">Clear All Sources</button>
+            <button id="settings-clear-chat" class="btn btn-outline btn-sm">Clear Chat</button>
+          </div>
+        </div>
+
+        <div class="settings-footer">
+          <button id="settings-back-home" class="btn btn-primary">Back to Chat</button>
+        </div>
+      </div>
+    </div>
+
     <!-- Main Layout -->
     <div class="layout" id="main-layout" style="display:none">
       <!-- Sidebar -->
@@ -86,6 +129,7 @@
                 <div class="spinner" id="playlist-spinner" style="display:none"></div>
               </button>
               <button id="cancel-playlist" class="btn btn-outline btn-sm" style="display:none" title="Cancel playlist processing">Cancel</button>
+              <button id="retry-playlist" class="btn btn-outline btn-sm" style="display:none" title="Resume paused playlist videos">Retry</button>
             </div>
             <div id="playlist-status" class="status-area" role="status" aria-live="polite" aria-atomic="true"></div>
             <div id="video-list" class="video-list"></div>
@@ -145,7 +189,7 @@
           <div class="chat-actions">
             <button class="btn btn-ghost btn-sm" id="clear-chat" title="Clear chat history">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
-              <span>Clear</span>
+              <span>Clear Chat</span>
             </button>
             <button class="btn btn-ghost btn-sm" id="change-key" title="Update API key">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
@@ -166,24 +210,6 @@
             </div>
             <h2>Skip to Understanding</h2>
             <p>Load a playlist or upload study files, then ask for explanations, quizzes, or a revision plan. Every answer stays source-grounded so you can verify what you learn.</p>
-            <div class="welcome-features">
-              <div class="feature">
-                <span class="feature-icon">●</span>
-                <span>Playlist indexing</span>
-              </div>
-              <div class="feature">
-                <span class="feature-icon">●</span>
-                <span>Document parsing</span>
-              </div>
-              <div class="feature">
-                <span class="feature-icon">●</span>
-                <span>Evidence citations</span>
-              </div>
-              <div class="feature">
-                <span class="feature-icon">●</span>
-                <span>Retention coaching</span>
-              </div>
-            </div>
             <div class="starter-prompts" aria-label="Starter prompts">
               <button class="prompt-chip" type="button" data-prompt="Teach me the 3 core ideas from my sources in plain language.">Teach core ideas</button>
               <button class="prompt-chip" type="button" data-prompt="Quiz me with 5 questions and explain each answer.">Quiz me</button>
