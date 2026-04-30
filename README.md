@@ -21,7 +21,7 @@ npm start
 ```    
 4 . Enter that API key in the popup in ur first run and u r good to go.
 
-**NOTE** - This is still under development . Feel free to Report bugs or Suggest a feature by Starting a new [new discussion](discussions)!
+**NOTE** - This is still under development . Feel free to Report bugs or Suggest a feature by Starting a [new discussion](https://github.com/Kishalll/learn-the-playlist/discussions)!
 
 ### Dev Notes:
 #### TO DO -
