@@ -1,4 +1,30 @@
-## TO DO -
+# What this is 
+**Learn the Playlist** is a platform in which u can upload an entire playlist(with over 100 vids) along with some docs or pdfs and the ai teaches u like how the playlist does.
+
+This is completely **free to use** with no limits (obv until nvidia decides to add some) and all ur data is store locally as chunks so that the responses are **Blazing Fast**.
+
+This saves time and u dont have to watch a full playlist to understand a few concepts. 
+or u can just learn the entire playlist thru here.
+
+
+# Setting up 
+1 . Go to https://build.nvidia.com/ and login.
+
+2 . Navigate to the "Explore" tab and create a API key 
+
+3 . Clone this repo and 
+
+```
+cd learn-the-playlist
+npm install
+npm start
+```    
+4 . Enter that API key in the popup in ur first run and u r good to go.
+
+**NOTE** - This is still under development . Feel free to Report bugs or Suggest a feature by Starting a new [new discussion](discussions)!
+
+### Dev Notes:
+#### TO DO -
 
 - [x] shows no captions found in all vids
 - [x] nvidia api fetch error
