@@ -155,5 +155,5 @@ app.get('/api/health', (req, res) => {
 });
 
 app.listen(PORT, () => {
-  console.log(`\n🚀 PlaylistGPT server running on http://localhost:${PORT}\n`);
+  console.log(`\n🚀 FastFrwd server running on http://localhost:${PORT}\n`);
 });

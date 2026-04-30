@@ -350,6 +350,9 @@ function setupEventListeners() {
   });
   els.chatInput.addEventListener('input', autoResizeTextarea);
   els.clearChat.addEventListener('click', clearChat);
+  if (els.welcomeScreen) {
+    els.welcomeScreen.addEventListener('click', handleStarterPromptClick);
+  }
 
   // Sources
   els.closeSources.addEventListener('click', () => closeSourcePanel());
@@ -360,6 +363,18 @@ function setupEventListeners() {
   // Resume modal
   els.resumeNow.addEventListener('click', resumeHeldJobs);
   els.resumeLater.addEventListener('click', deferHeldJobs);
+}
+
+function handleStarterPromptClick(event) {
+  const chip = event.target.closest('.prompt-chip');
+  if (!chip) return;
+
+  const prompt = chip.dataset.prompt?.trim();
+  if (!prompt) return;
+
+  els.chatInput.value = prompt;
+  autoResizeTextarea();
+  els.chatInput.focus();
 }
 
 function handleTabKeydown(event) {
@@ -1163,7 +1178,9 @@ function appendMessage(role, content) {
   const div = document.createElement('div');
   div.className = `message ${role}`;
 
-  const avatar = role === 'assistant' ? '🤖' : '👤';
+  const avatar = role === 'assistant'
+    ? '<svg class="avatar-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><rect x="5" y="6" width="14" height="12" rx="4" stroke="currentColor" stroke-width="1.8"/><path d="M12 3.5V6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="9.5" cy="11.5" r="1" fill="currentColor"/><circle cx="14.5" cy="11.5" r="1" fill="currentColor"/><path d="M9 15C9.9 15.7 11 16 12 16C13 16 14.1 15.7 15 15" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>'
+    : '<svg class="avatar-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><circle cx="12" cy="8.5" r="3.2" stroke="currentColor" stroke-width="1.8"/><path d="M6.5 18.5C7.6 15.9 9.6 14.5 12 14.5C14.4 14.5 16.4 15.9 17.5 18.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>';
   div.innerHTML = `
     <div class="message-avatar">${avatar}</div>
     <div class="message-content">
@@ -1182,7 +1199,7 @@ function appendTyping() {
   div.className = 'message assistant';
   div.id = id;
   div.innerHTML = `
-    <div class="message-avatar">🤖</div>
+    <div class="message-avatar"><svg class="avatar-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><rect x="5" y="6" width="14" height="12" rx="4" stroke="currentColor" stroke-width="1.8"/><path d="M12 3.5V6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="9.5" cy="11.5" r="1" fill="currentColor"/><circle cx="14.5" cy="11.5" r="1" fill="currentColor"/><path d="M9 15C9.9 15.7 11 16 12 16C13 16 14.1 15.7 15 15" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></div>
     <div class="message-content">
       <div class="typing-indicator">
         <div class="typing-dot"></div>
@@ -1210,7 +1227,7 @@ function addSourceBadges(msgEl, sources) {
     const badge = document.createElement('button');
     badge.type = 'button';
     badge.className = 'source-badge';
-    badge.textContent = `📌 ${s.source || `Source ${i + 1}`} (${s.similarity}%)`;
+    badge.textContent = `${s.source || `Source ${i + 1}`} (${s.similarity}%)`;
     badge.setAttribute('aria-label', `View source ${s.source || `Source ${i + 1}`}`);
     badge.setAttribute('aria-controls', 'source-panel');
     badge.setAttribute('aria-expanded', 'false');
@@ -1244,7 +1261,7 @@ function showSources(sources, triggerEl) {
 
     const typeEl = document.createElement('div');
     typeEl.className = 'source-card-type';
-    typeEl.textContent = s.type === 'video' ? '🎥 Video Transcript' : '📄 Uploaded File';
+    typeEl.textContent = s.type === 'video' ? 'Video transcript' : 'Uploaded file';
 
     header.appendChild(nameEl);
     header.appendChild(scoreEl);
@@ -1313,7 +1330,7 @@ function updateKnowledgeStats(sources, totalChunks) {
   if (sources.length > 0) {
     els.chatSubtitle.textContent = `${sources.length} sources ready • ${totalChunks} study sections indexed`;
   } else {
-    els.chatSubtitle.textContent = 'Load a playlist or upload files, then ask your first question';
+    els.chatSubtitle.textContent = 'Skip long playlists. Load sources and ask your first question.';
   }
 }
 

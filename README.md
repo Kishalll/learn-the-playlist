@@ -11,6 +11,7 @@
 - [ ] api key dialoug box comes briefly on startup- chk api key in the bg
 - [x] file remove from knowledge base
 - [ ] when i ask about a vid , it says bout it but ig it includes unnessary vids as source
+- [ ] does not display all sources propery in chat
 - [ ] add cancel button in playlist processing
 - [x] button to retry vids that were not processed
 - [ ] select option to add only some vids to knowledge base

@@ -3,11 +3,11 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>PlaylistGPT — AI Video Tutor</title>
-  <meta name="description" content="Turn any YouTube playlist into a personal AI tutor. Upload videos and documents, then learn through interactive conversation." />
+  <title>FastFrwd — Learn Playlists Faster</title>
+  <meta name="description" content="Students waste hours watching full playlists. FastFrwd turns playlists and study files into source-grounded answers so you learn faster." />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="./style.css" />
 </head>
 <body>
@@ -22,7 +22,7 @@
     <div id="api-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="api-modal-title" aria-describedby="api-modal-desc" aria-hidden="false">
       <div class="modal-card" tabindex="-1">
         <div class="modal-icon">🔑</div>
-        <h2 id="api-modal-title">Welcome to PlaylistGPT</h2>
+        <h2 id="api-modal-title">Welcome to FastFrwd</h2>
         <p id="api-modal-desc">Enter your NVIDIA API key to start. You can get a free key from <a href="https://build.nvidia.com" target="_blank" rel="noopener">build.nvidia.com</a></p>
         <div class="input-group">
           <input type="password" id="api-key-input" placeholder="nvapi-..." autocomplete="off" aria-label="NVIDIA API key" />
@@ -45,7 +45,7 @@
           <button id="resume-later" class="btn btn-outline">Not Now</button>
           <button id="resume-now" class="btn btn-primary">Resume Now</button>
         </div>
-        <p class="modal-hint">Held items never auto-run. You can retry each item manually later.</p>
+        <p class="modal-hint">Paused items never auto-run. You can retry each item manually later.</p>
       </div>
     </div>
 
@@ -55,8 +55,14 @@
       <aside class="sidebar" id="sidebar">
         <div class="sidebar-header">
           <div class="logo">
-            <span class="logo-icon">⚡</span>
-            <span class="logo-text">PlaylistGPT</span>
+            <span class="logo-icon" aria-hidden="true">
+              <svg class="brand-mark" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <rect x="7" y="8" width="18" height="16" rx="2.1" stroke="currentColor" stroke-width="1.9"/>
+                <path d="M11.5 8V24" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/>
+                <path d="M14.5 13.5L19 16L14.5 18.5V13.5Z" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </span>
+            <span class="logo-text">FastFrwd</span>
           </div>
           <button class="btn-icon" id="sidebar-toggle" title="Toggle sidebar" aria-label="Collapse sidebar">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>
@@ -66,9 +72,9 @@
         <div class="sidebar-content">
           <!-- Tabs -->
           <div class="sidebar-tabs" role="tablist" aria-label="Knowledge source tabs">
-            <button class="tab active" id="tab-btn-playlist" role="tab" aria-selected="true" aria-controls="tab-playlist" tabindex="0" data-tab="playlist">🎬 Playlist</button>
-            <button class="tab" id="tab-btn-files" role="tab" aria-selected="false" aria-controls="tab-files" tabindex="-1" data-tab="files">📁 Files</button>
-            <button class="tab" id="tab-btn-convert" role="tab" aria-selected="false" aria-controls="tab-convert" tabindex="-1" data-tab="convert">🔄 Convert</button>
+            <button class="tab active" id="tab-btn-playlist" role="tab" aria-selected="true" aria-controls="tab-playlist" tabindex="0" data-tab="playlist">Playlist</button>
+            <button class="tab" id="tab-btn-files" role="tab" aria-selected="false" aria-controls="tab-files" tabindex="-1" data-tab="files">Files</button>
+            <button class="tab" id="tab-btn-convert" role="tab" aria-selected="false" aria-controls="tab-convert" tabindex="-1" data-tab="convert">Convert</button>
           </div>
 
           <!-- Playlist Tab -->
@@ -118,7 +124,7 @@
               <span class="stat-value" id="stat-sources">0</span>
             </div>
             <div class="stat">
-              <span class="stat-label">Chunks</span>
+              <span class="stat-label">Sections</span>
               <span class="stat-value" id="stat-chunks">0</span>
             </div>
           </div>
@@ -132,8 +138,8 @@
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12h18M3 6h18M3 18h18"/></svg>
           </button>
           <div class="chat-title">
-            <h1>AI Tutor</h1>
-            <span class="chat-subtitle" id="chat-subtitle" role="status" aria-live="polite" aria-atomic="true">Load a playlist or upload files, then ask your first question</span>
+            <h1>FastFrwd Workspace</h1>
+            <span class="chat-subtitle" id="chat-subtitle" role="status" aria-live="polite" aria-atomic="true">Skip long playlists. Load sources and ask your first question.</span>
           </div>
           <div class="chat-actions">
             <button class="btn btn-ghost btn-sm" id="clear-chat" title="Clear chat history">
@@ -150,26 +156,37 @@
         <!-- Messages -->
         <div class="messages-container" id="messages-container">
           <div class="welcome-screen" id="welcome-screen">
-            <div class="welcome-icon">🎓</div>
-            <h2>Ready to Learn?</h2>
-            <p>Load a YouTube playlist or upload your study materials, then ask me anything about the content. I'll teach you step-by-step!</p>
+            <div class="welcome-icon" aria-hidden="true">
+              <svg class="brand-mark" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <rect x="7" y="8" width="18" height="16" rx="2.1" stroke="currentColor" stroke-width="1.9"/>
+                <path d="M11.5 8V24" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/>
+                <path d="M14.5 13.5L19 16L14.5 18.5V13.5Z" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </div>
+            <h2>Skip to Understanding</h2>
+            <p>Load a playlist or upload study files, then ask for explanations, quizzes, or a revision plan. Every answer stays source-grounded so you can verify what you learn.</p>
             <div class="welcome-features">
               <div class="feature">
-                <span class="feature-icon">🎬</span>
-                <span>Video Transcripts</span>
+                <span class="feature-icon">●</span>
+                <span>Playlist indexing</span>
               </div>
               <div class="feature">
-                <span class="feature-icon">📚</span>
-                <span>Document Analysis</span>
+                <span class="feature-icon">●</span>
+                <span>Document parsing</span>
               </div>
               <div class="feature">
-                <span class="feature-icon">🌐</span>
-                <span>Multilingual</span>
+                <span class="feature-icon">●</span>
+                <span>Evidence citations</span>
               </div>
               <div class="feature">
-                <span class="feature-icon">🧠</span>
-                <span>Step-by-Step Teaching</span>
+                <span class="feature-icon">●</span>
+                <span>Retention coaching</span>
               </div>
+            </div>
+            <div class="starter-prompts" aria-label="Starter prompts">
+              <button class="prompt-chip" type="button" data-prompt="Teach me the 3 core ideas from my sources in plain language.">Teach core ideas</button>
+              <button class="prompt-chip" type="button" data-prompt="Quiz me with 5 questions and explain each answer.">Quiz me</button>
+              <button class="prompt-chip" type="button" data-prompt="Create a 30-minute revision plan based on the loaded sources.">Build revision plan</button>
             </div>
           </div>
           <div id="messages" class="messages"></div>
@@ -180,7 +197,8 @@
           <div class="input-wrapper">
             <textarea id="chat-input" placeholder="Ask a question about your loaded sources..." rows="1" aria-label="Chat message"></textarea>
             <button id="send-btn" class="btn btn-send" title="Send message (Enter)" aria-label="Send message">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12H19"/><path d="M13 6L19 12L13 18"/></svg>
+              <span class="send-label">Send</span>
             </button>
           </div>
           <p class="input-hint">Press <kbd>Enter</kbd> to send, <kbd>Shift+Enter</kbd> for new line</p>
@@ -190,7 +208,7 @@
       <!-- Source Panel (slide-out) -->
       <div class="source-panel" id="source-panel" aria-labelledby="source-panel-title">
         <div class="source-panel-header">
-          <h3 id="source-panel-title">📖 Sources Used</h3>
+          <h3 id="source-panel-title">Sources Used</h3>
           <button class="btn-icon" id="close-sources" aria-label="Close sources panel">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
           </button>
