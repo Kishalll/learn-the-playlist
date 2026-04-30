@@ -5,3 +5,8 @@ server/data/*.json
 test-captions.js
 test-upload.js
 test-pdf.js
+.claude
+skills-lock.json
+DESIGN.json
+DESIGN.md
+PRODUCT.md
