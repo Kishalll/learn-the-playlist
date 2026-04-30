@@ -431,9 +431,9 @@ router.delete('/source/:sourceId', (req, res) => {
     const videoId = sourceId.slice(6);
     const item = playlistState.items.find(v => v.videoId === videoId);
     if (item) {
-      item.status = 'pending';
+      item.status = 'held';
       item.chunkCount = 0;
-      item.message = 'Removed from knowledge base';
+      item.message = 'Removed from knowledge base. Click Retry to index again.';
       item.updatedAt = nowIso();
     }
   } else if (sourceId.startsWith('file_')) {

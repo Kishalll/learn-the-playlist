@@ -1942,26 +1942,21 @@ async function removeKnowledgeSource(sourceId, sourceType, label, row, button) {
       throw new Error(data.error || 'Could not remove this source');
     }
 
-    if (row) row.remove();
+    if (row && sourceType !== 'video') {
+      row.remove();
+    }
+
+    if (row && sourceType === 'video') {
+      const videoId = row.id.replace('video-', '');
+      if (videoId) {
+        updateVideoItem(videoId, 'held', 'Removed from knowledge base. Click Retry to index again.');
+      }
+    }
+
     updateKnowledgeStats(data.sources || [], data.totalChunks || 0);
     await refreshKnowledgeAndSnapshots(false);
     const statusEl = sourceType === 'video' ? els.playlistStatus : els.uploadStatus;
-
-    const shouldResetChat = window.confirm(
-      `Removed ${thing} from your sources.\n\nClear chat now to avoid answers that cite deleted content?`
-    );
-
-    if (shouldResetChat) {
-      await clearChat();
-      setStatus(statusEl, `${thing[0].toUpperCase() + thing.slice(1)} removed. Chat cleared for source-accurate answers.`, 'success');
-      return;
-    }
-
-    setStatus(
-      statusEl,
-      `${thing[0].toUpperCase() + thing.slice(1)} removed. You can continue chatting. Clear chat later if old sources appear in answers.`,
-      'success'
-    );
+    setStatus(statusEl, `${thing[0].toUpperCase() + thing.slice(1)} removed from your sources.`, 'success');
   } catch (err) {
     const statusEl = sourceType === 'video' ? els.playlistStatus : els.uploadStatus;
     setStatus(statusEl, `Could not remove this ${thing}: ${err.message}`, 'error');
