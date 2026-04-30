@@ -187,9 +187,19 @@ a:hover { color: var(--accent-hover); text-decoration: underline; }
   background: linear-gradient(165deg, #c59a52, #d3ac6f);
   color: #21190d;
 }
-.btn-primary:hover { transform: translateY(-1px); box-shadow: 0 6px 16px var(--accent-glow); }
+.btn-primary:hover {
+  color: #21190d;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px var(--accent-glow);
+}
 .btn-primary:focus-visible { box-shadow: var(--focus-ring); }
 .btn-primary:active { transform: translateY(0); }
+a.btn:hover { text-decoration: none; }
+a.btn.btn-primary:hover,
+a.btn.btn-primary:focus-visible,
+a.btn.btn-primary:visited {
+  color: #21190d;
+}
 .btn-outline { background: transparent; color: var(--text-primary); border: 1px solid var(--border); }
 .btn-outline:hover { border-color: var(--accent); background: var(--accent-tint); }
 .btn-outline:focus-visible { box-shadow: var(--focus-ring); }
@@ -211,6 +221,9 @@ a:hover { color: var(--accent-hover); text-decoration: underline; }
 
 /* ===== INPUTS ===== */
 .input-group { display: flex; gap: var(--space-sm); }
+.input-group > input { min-width: 0; }
+#load-playlist,
+#cancel-playlist { flex-shrink: 0; }
 .input-group input, input[type="text"], input[type="password"] {
   flex: 1; padding: 10px var(--space-lg);
   background: var(--bg-input); border: 1px solid var(--border);
@@ -744,6 +757,14 @@ kbd {
 
   .btn-icon,
   .source-remove-btn { min-width: 44px; }
+
+  #tab-playlist .input-group {
+    flex-wrap: wrap;
+  }
+
+  #tab-playlist .input-group #playlist-url {
+    flex-basis: 100%;
+  }
 
   .btn-send {
     min-width: 44px;

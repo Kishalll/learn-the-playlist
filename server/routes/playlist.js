@@ -357,9 +357,6 @@ router.post('/retry/:videoId', async (req, res) => {
 
   const item = playlistState.items.find(v => v.videoId === videoId);
   if (!item) return res.status(404).json({ error: 'Video not found in playlist state' });
-  if (item.status === 'done' || item.status === 'skipped') {
-    return res.status(400).json({ error: 'This video is already indexed' });
-  }
 
   try {
     const result = await processVideoItem(item, apiKey);

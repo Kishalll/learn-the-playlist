@@ -12,6 +12,8 @@ const state = {
   sessionId: localStorage.getItem('session_id') || crypto.randomUUID(),
   isStreaming: false,
   isPlaylistProcessing: false,
+  cancelPlaylistInFlight: false,
+  playlistAbortController: null,
   sidebarOpen: true,
   playlistSnapshot: null,
   uploadSnapshot: null,
@@ -49,6 +51,7 @@ const els = {
   sidebarOpen: $('#sidebar-open'),
   playlistUrl: $('#playlist-url'),
   loadPlaylist: $('#load-playlist'),
+  cancelPlaylist: $('#cancel-playlist'),
   loadPlaylistText: $('#load-playlist-text'),
   playlistSpinner: $('#playlist-spinner'),
   playlistStatus: $('#playlist-status'),
@@ -330,6 +333,9 @@ function setupEventListeners() {
 
   // Playlist
   els.loadPlaylist.addEventListener('click', loadPlaylist);
+  if (els.cancelPlaylist) {
+    els.cancelPlaylist.addEventListener('click', cancelPlaylistProcessing);
+  }
   els.playlistUrl.addEventListener('keydown', (e) => { if (e.key === 'Enter') loadPlaylist(); });
 
   // File Upload
@@ -636,11 +642,85 @@ async function loadPendingSnapshots() {
     state.uploadSnapshot = uploadRes.ok ? await uploadRes.json() : null;
     state.isPlaylistProcessing = !!state.playlistSnapshot?.running;
 
+    updatePlaylistControls();
     hydratePendingStates();
   } catch {
     state.playlistSnapshot = null;
     state.uploadSnapshot = null;
     state.isPlaylistProcessing = false;
+    updatePlaylistControls();
+  }
+}
+
+function updatePlaylistControls() {
+  const isProcessing = state.isPlaylistProcessing;
+  els.loadPlaylist.disabled = isProcessing;
+  els.loadPlaylistText.style.display = isProcessing ? 'none' : 'inline';
+  els.playlistSpinner.style.display = isProcessing ? 'block' : 'none';
+
+  if (els.cancelPlaylist) {
+    els.cancelPlaylist.style.display = isProcessing ? 'inline-flex' : 'none';
+    els.cancelPlaylist.disabled = !isProcessing || state.cancelPlaylistInFlight;
+    els.cancelPlaylist.textContent = state.cancelPlaylistInFlight ? 'Cancelling...' : 'Cancel';
+  }
+}
+
+function markRemainingPlaylistItemsHeld() {
+  Array.from(els.videoList.children).forEach((row) => {
+    const status = row.dataset.status;
+    if (status !== 'pending' && status !== 'processing' && status !== 'embedding') return;
+
+    const videoId = row.id.replace('video-', '');
+    if (!videoId) return;
+    updateVideoItem(videoId, 'held', 'Paused. Click Retry to continue.');
+  });
+}
+
+async function cancelPlaylistProcessing() {
+  if (!state.isPlaylistProcessing || state.cancelPlaylistInFlight) return;
+
+  state.cancelPlaylistInFlight = true;
+  updatePlaylistControls();
+
+  try {
+    setStatus(els.playlistStatus, 'Cancelling playlist processing. Remaining videos will be paused...');
+    const response = await fetch('/api/playlist/defer', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ apiKey: state.apiKey }),
+    });
+
+    const text = await response.text();
+    let data = {};
+    try {
+      data = text ? JSON.parse(text) : {};
+    } catch {
+      data = {};
+    }
+
+    if (!response.ok || data.error) {
+      throw new Error(data.error || 'Could not cancel playlist processing');
+    }
+
+    if (state.playlistAbortController) {
+      state.playlistAbortController.abort();
+    }
+
+    state.isPlaylistProcessing = false;
+    updatePlaylistControls();
+    markRemainingPlaylistItemsHeld();
+    if (Array.isArray(data.pending?.items)) {
+      data.pending.items.forEach(hydrateVideoItemFromSnapshot);
+    }
+
+    setStatus(els.playlistStatus, 'Playlist paused. Remaining videos are held; use Retry on any video to continue later.', 'success');
+    await refreshKnowledgeAndSnapshots(false);
+  } catch (err) {
+    setStatus(els.playlistStatus, `Could not cancel playlist processing: ${err.message}`, 'error');
+    if (isApiKeyIssue(err.message)) handleApiKeyFailure(err.message);
+  } finally {
+    state.cancelPlaylistInFlight = false;
+    updatePlaylistControls();
   }
 }
 
@@ -648,10 +728,9 @@ async function streamPlaylistRequest(endpoint, payload) {
   const shouldClearList = endpoint === '/api/playlist/load' || endpoint === '/api/playlist/resume';
   let success = false;
   state.isPlaylistProcessing = true;
+  state.playlistAbortController = new AbortController();
+  updatePlaylistControls();
 
-  els.loadPlaylistText.style.display = 'none';
-  els.playlistSpinner.style.display = 'block';
-  els.loadPlaylist.disabled = true;
   if (shouldClearList) els.videoList.innerHTML = '';
   els.playlistStatus.innerHTML = '';
 
@@ -659,6 +738,7 @@ async function streamPlaylistRequest(endpoint, payload) {
     const response = await fetch(endpoint, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
+      signal: state.playlistAbortController.signal,
       body: JSON.stringify(payload),
     });
 
@@ -698,16 +778,17 @@ async function streamPlaylistRequest(endpoint, payload) {
     }
     success = true;
   } catch (err) {
-    setStatus(els.playlistStatus, `Could not process this playlist: ${err.message}`, 'error');
-    if (isApiKeyIssue(err.message)) {
-      handleApiKeyFailure(err.message);
+    if (err?.name !== 'AbortError') {
+      setStatus(els.playlistStatus, `Could not process this playlist: ${err.message}`, 'error');
+      if (isApiKeyIssue(err.message)) {
+        handleApiKeyFailure(err.message);
+      }
     }
   }
 
+  state.playlistAbortController = null;
   state.isPlaylistProcessing = false;
-  els.loadPlaylistText.style.display = 'inline';
-  els.playlistSpinner.style.display = 'none';
-  els.loadPlaylist.disabled = false;
+  updatePlaylistControls();
   await refreshKnowledgeAndSnapshots(false);
   return success;
 }
