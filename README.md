@@ -1,5 +1,5 @@
 # What this is 
-**Learn the Playlist** is a platform in which u can upload an entire playlist(with over 100 vids) along with some docs or pdfs and the ai teaches u like how the playlist does.
+**FastFrwd** is a platform in which u can upload an entire playlist(with over 100 vids) along with some docs or pdfs and the ai teaches u like how the playlist does.
 
 This is completely **free to use** with no limits (obv until nvidia decides to add some) and all ur data is store locally as chunks so that the responses are **Blazing Fast**.
 
@@ -15,13 +15,13 @@ or u can just learn the entire playlist thru here.
 3 . Clone this repo and 
 
 ```
-cd learn-the-playlist
+cd fastfrwd
 npm install
 npm start
 ```    
 4 . Enter that API key in the popup in ur first run and u r good to go.
 
-**NOTE** - This is still under development . Feel free to Report bugs or Suggest a feature by Starting a [new discussion](https://github.com/Kishalll/learn-the-playlist/discussions)!
+**NOTE** - This is still under development . Feel free to Report bugs or Suggest a feature by Starting a [new discussion](https://github.com/Kishalll/fastfrwd/discussions)!
 
 ### Dev Notes:
 #### TO DO -
